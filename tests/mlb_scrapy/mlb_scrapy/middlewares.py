@@ -5,6 +5,7 @@
 
 from scrapy import signals, Request
 from scrapy.exceptions import IgnoreRequest
+
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
 
@@ -14,10 +15,14 @@ class MlbScrapySpiderMiddleware:
     # scrapy acts as if the spider middleware does not modify the
     # passed objects.
 
+    def __init__(self, start_urls):
+        self.start_urls = start_urls
+
     @classmethod
     def from_crawler(cls, crawler):
         # This method is used by Scrapy to create your spiders.
-        s = cls()
+
+        s = cls(crawler.settings.getlist('start_urls'))
         crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
         return s
 
@@ -87,7 +92,14 @@ class MlbScrapyDownloaderMiddleware:
         # - return a Response object
         # - return a Request object
         # - or raise IgnoreRequest
+
+        if response.status == [302, 404, 500]:
+            spider.logger.info("DEBUG  Redirect to Start Url Attribute")
+            new_request = Request(url=request.url, dont_filter=True)
+            new_request.meta['redirect_from'] = request
+            raise IgnoreRequest(new_request)
         return response
+
 
     def process_exception(self, request, exception, spider):
         # Called when a download handler or a process_request()
@@ -102,25 +114,4 @@ class MlbScrapyDownloaderMiddleware:
     def spider_opened(self, spider):
         spider.logger.info("Spider opened: %s" % spider.name)
 
-
-class RedirectMiddleware:
-
-    def __init__(self, start_urls):
-        self.start_urls = start_urls
-
-    @classmethod
-    def from_crawler(cls, , crawler):
-        settings = crawler.settings
-        start_urls = settings.getlist('start_urls')
-        middleware = cls(start_urls)
-        crawler.settings.connect(middleware.spider_opened, signal=signals.spider_opened)
-        return middleware
-
-    def process_response(self, request, response, spider):
-        if response.status == [301, 404, 500]:
-            spider.logger.info("DEBUG  Redirect to Start Url Attribute")
-            new_request = Request(url=request.url, dont_filter=True)
-            new_request.meta['redirect_from'] = request
-            raise IgnoreRequest(new_request)
-        return response
 

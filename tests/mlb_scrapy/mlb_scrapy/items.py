@@ -6,8 +6,7 @@
 from scrapy import Item, Field
 
 
-class Element(Item):
+class ItemFromFinder(Item):
     it_by: Field = Field()
     take_more: Field = Field()
-
 
